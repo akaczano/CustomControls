@@ -14,102 +14,161 @@ namespace WindowsFormsApp1
 
         private T _selectedItem;
 
-        public T SelectedItem { 
-            get {
+        public T SelectedItem
+        {            
+            get
+            {
                 return _selectedItem;
             }
-            set {
-                _selectedItem = value;
-                Draw();
+            set
+            {
+                if (_selectable)
+                {
+                    if (_selectedItem != null)
+                    {
+                        Controls.Find(_selectedItem.ToString(), false).First().ForeColor = ForeColor;
+                    }
+                    SelectionChanged?.Invoke(_selectedItem, value);
+                    _selectedItem = value;
+                    Controls.Find(value.ToString(), false).FirstOrDefault().ForeColor = SelectColor;
+                }
             }
         }
 
         public int VerticalPadding { get; set; } = 10;
-        
+
         public int LeftMargin { get; set; } = 5;
 
         public Color HoverColor { get; set; } = Color.Blue;
 
         public Color SelectColor { get; set; } = Color.Blue;
-        
-        
+
+        public delegate void SelectionChangedHandler(T oldItem, T newItem);
+
+        public event SelectionChangedHandler SelectionChanged;
+
+        private int _cursorY;
+
         private string _filterText = "";
-        public string FilterText {
-            get {
+        public string FilterText
+        {
+            get
+            {
                 return _filterText;
-            } 
-            set {
-                _filterText = value;
-                Draw();
-            } 
+            }
+            set
+            {
+                _filterText = value;                
+                int lastLocation = VerticalPadding;
+                foreach (Control c in Controls) {
+                    c.Visible = c.Name.ToLower().Contains(_filterText.ToLower());
+                    if (c.Visible) {
+                        if (c.Location.Y != lastLocation)
+                        {
+                            c.Location = new Point(c.Location.X, lastLocation);
+                        }
+                        lastLocation += Font.Height + VerticalPadding;
+                    }
+                }                
+            }
         }
 
-        public EnhancedListView () {
+        private bool _selectable = false;
+        private bool _draggable = false;
+
+        public EnhancedListView(bool selectable, bool draggable)
+        {
             this.AutoScroll = true;
             _items = new List<T>();
-            AllowDrop = true;
-        }         
-
-
-
-        public void Add(T item) {
-            _items.Add(item);
-            Draw();
+            _draggable = draggable;
+            _selectable = selectable;
         }
 
+        
 
-        public void Draw() {            
+        public void Add(T item)
+        {
+            _items.Add(item);
+            Label l = CreateLabel(item, _cursorY);
+            Controls.Add(l);
+            _cursorY += l.Font.Height + VerticalPadding;
+        }
+
+        public void Remove(T item)
+        {
+            if (_items.Contains(item))
+            {
+                Control label = Controls.Find(item.ToString(), false).First();
+                int position = label.Location.Y;
+                Controls.Remove(label);
+                foreach (Control c in Controls) {
+                    if (c.Location.Y > position) {
+                        c.Location = new Point(LeftMargin, c.Location.Y - (VerticalPadding + Font.Height));
+                    }
+                }
+                if (_selectedItem.Equals(item)) {
+                    _selectedItem = default;
+                }
+                _items.Remove(item);
+            }
+        }
+
+        private Label CreateLabel(T item, int y)
+        {
+            Label l = new Label()
+            {
+                Text = item.ToString(),
+                Location = new Point(LeftMargin, _cursorY),
+                Font = Font,
+                ForeColor = ForeColor,
+                Name = item.ToString()
+            };
+            if (item.Equals(_selectedItem))
+            {
+                l.ForeColor = SelectColor;
+            }
+            else
+            {
+                l.MouseEnter += (sender, args) =>
+                {
+                    l.ForeColor = HoverColor;
+                };
+                l.MouseLeave += (sender, args) =>
+                {
+                    if (!item.Equals(_selectedItem))
+                    {
+                        l.ForeColor = ForeColor;
+                    }
+                    else
+                    {
+                        l.ForeColor = SelectColor;
+                    }
+                };
+            }
+            l.Click += (sender, args) =>
+            {
+                SelectedItem = item;                
+            };
+            l.MouseDown += (sender, args) => {
+                if (_draggable) {
+                    l.DoDragDrop(item.ToString(), DragDropEffects.Copy | DragDropEffects.Move);
+                }
+            };
+            return l;
+        }
+
+        public void ResizeToParent()
+        {
             this.Width = this.Parent.Width;
             this.Height = this.Parent.Height;
             this.Location = new Point(0, 0);
-
-            List<Control> newControls = new List<Control>();            
-            int cursorY = VerticalPadding;
-            foreach (T item in _items) {
-                if (!item.ToString().ToLower().Contains(_filterText.ToLower())) {
-                    continue;
-                }
-                Label l = new Label() {
-                    Text = item.ToString(),
-                    Location = new Point(LeftMargin, cursorY),
-                    Font = Font,
-                    ForeColor = ForeColor,                    
-                };
-                if (item.Equals(_selectedItem))
-                {
-                    l.ForeColor = SelectColor;
-                }
-                else
-                {
-                    l.MouseEnter += (sender, args) =>
-                    {
-                        l.ForeColor = HoverColor;
-                    };
-                    l.MouseLeave += (sender, args) =>
-                    {
-                        l.ForeColor = ForeColor;
-                    };
-                }
-                l.Click += (sender, args) =>
-                {
-                    //_selectedItem = item;
-                    //Draw();
-                    //l.DoDragDrop(item, DragDropEffects.Move | DragDropEffects.Copy);
-                };
-                l.MouseDown += (sender, args) => {
-                    l.DoDragDrop(item, DragDropEffects.Move | DragDropEffects.Copy);
-                };
-                newControls.Add(l);
-                cursorY += l.Font.Height + VerticalPadding;
-            }
-            this.Controls.Clear();
-            this.Controls.AddRange(newControls.ToArray());
         }
+
 
         protected override void OnDragOver(DragEventArgs drgevent)
         {
             base.OnDragOver(drgevent);
-            //MessageBox.Show("Hello?");
+            
         }
 
     }
