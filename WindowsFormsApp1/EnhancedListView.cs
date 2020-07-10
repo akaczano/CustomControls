@@ -52,29 +52,11 @@ namespace WindowsFormsApp1
 
         private int _cursorY;
 
-        private string _filterText = "";
         public string FilterText
         {
-            get
-            {
-                return _filterText;
-            }
             set
             {
-                _filterText = value;
-                int lastLocation = VerticalPadding;
-                foreach (Control c in Controls)
-                {
-                    c.Visible = c.Name.ToLower().Contains(_filterText.ToLower());
-                    if (c.Visible)
-                    {
-                        if (c.Location.Y != lastLocation)
-                        {
-                            c.Location = new Point(c.Location.X, lastLocation);
-                        }
-                        lastLocation += Font.Height + VerticalPadding;
-                    }
-                }
+                Filter(i => i.ToString().ToLower().Contains(value.ToLower()));
             }
         }
 
@@ -89,6 +71,22 @@ namespace WindowsFormsApp1
             _selectable = selectable;
         }
 
+
+        public void Filter(Predicate<T> predicate) {
+            int lastLocation = VerticalPadding;
+            foreach (Control c in Controls)
+            {
+                c.Visible = predicate(Items.Find(i => i.ToString() == c.Name));
+                if (c.Visible)
+                {
+                    if (c.Location.Y != lastLocation)
+                    {
+                        c.Location = new Point(c.Location.X, lastLocation);
+                    }
+                    lastLocation += Font.Height + VerticalPadding;
+                }
+            }
+        }
 
 
         public void Add(T item)
