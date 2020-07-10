@@ -10,12 +10,12 @@ namespace WindowsFormsApp1
 {
     class EnhancedListView<T> : Panel
     {
-        private List<T> _items;
+        public List<T> Items { get; }
 
         private T _selectedItem;
 
         public T SelectedItem
-        {            
+        {
             get
             {
                 return _selectedItem;
@@ -28,9 +28,12 @@ namespace WindowsFormsApp1
                     {
                         Controls.Find(_selectedItem.ToString(), false).First().ForeColor = ForeColor;
                     }
+                    if (value != null)
+                    {
+                        _selectedItem = value;
+                        Controls.Find(value.ToString(), false).FirstOrDefault().ForeColor = SelectColor;
+                    }
                     SelectionChanged?.Invoke(_selectedItem, value);
-                    _selectedItem = value;
-                    Controls.Find(value.ToString(), false).FirstOrDefault().ForeColor = SelectColor;
                 }
             }
         }
@@ -58,18 +61,20 @@ namespace WindowsFormsApp1
             }
             set
             {
-                _filterText = value;                
+                _filterText = value;
                 int lastLocation = VerticalPadding;
-                foreach (Control c in Controls) {
+                foreach (Control c in Controls)
+                {
                     c.Visible = c.Name.ToLower().Contains(_filterText.ToLower());
-                    if (c.Visible) {
+                    if (c.Visible)
+                    {
                         if (c.Location.Y != lastLocation)
                         {
                             c.Location = new Point(c.Location.X, lastLocation);
                         }
                         lastLocation += Font.Height + VerticalPadding;
                     }
-                }                
+                }
             }
         }
 
@@ -79,37 +84,50 @@ namespace WindowsFormsApp1
         public EnhancedListView(bool selectable, bool draggable)
         {
             this.AutoScroll = true;
-            _items = new List<T>();
+            Items = new List<T>();
             _draggable = draggable;
             _selectable = selectable;
         }
 
-        
+
 
         public void Add(T item)
         {
-            _items.Add(item);
+            Items.Add(item);
             Label l = CreateLabel(item, _cursorY);
             Controls.Add(l);
             _cursorY += l.Font.Height + VerticalPadding;
         }
 
+        public void Clear()
+        {
+            Items.Clear();
+            Controls.Clear();
+            SelectedItem = default;
+            _cursorY = VerticalPadding;
+        }
+
         public void Remove(T item)
         {
-            if (_items.Contains(item))
+            if (Items.Contains(item))
             {
                 Control label = Controls.Find(item.ToString(), false).First();
                 int position = label.Location.Y;
+                _cursorY -= (label.Font.Height + VerticalPadding);
                 Controls.Remove(label);
-                foreach (Control c in Controls) {
-                    if (c.Location.Y > position) {
+                foreach (Control c in Controls)
+                {
+                    if (c.Location.Y > position)
+                    {
                         c.Location = new Point(LeftMargin, c.Location.Y - (VerticalPadding + Font.Height));
                     }
                 }
-                if (_selectedItem.Equals(item)) {
+
+                if (_selectedItem.Equals(item))
+                {
                     _selectedItem = default;
                 }
-                _items.Remove(item);
+                Items.Remove(item);
             }
         }
 
@@ -121,6 +139,7 @@ namespace WindowsFormsApp1
                 Location = new Point(LeftMargin, _cursorY),
                 Font = Font,
                 ForeColor = ForeColor,
+                Width = Width - LeftMargin,
                 Name = item.ToString()
             };
             if (item.Equals(_selectedItem))
@@ -129,12 +148,10 @@ namespace WindowsFormsApp1
             }
             else
             {
-                l.MouseEnter += (sender, args) =>
-                {
+                l.MouseEnter += (sender, args) => {
                     l.ForeColor = HoverColor;
                 };
-                l.MouseLeave += (sender, args) =>
-                {
+                l.MouseLeave += (sender, args) => {
                     if (!item.Equals(_selectedItem))
                     {
                         l.ForeColor = ForeColor;
@@ -145,12 +162,12 @@ namespace WindowsFormsApp1
                     }
                 };
             }
-            l.Click += (sender, args) =>
-            {
-                SelectedItem = item;                
+            l.Click += (sender, args) => {
+                SelectedItem = item;
             };
             l.MouseDown += (sender, args) => {
-                if (_draggable) {
+                if (_draggable)
+                {
                     l.DoDragDrop(item.ToString(), DragDropEffects.Copy | DragDropEffects.Move);
                 }
             };
@@ -164,11 +181,23 @@ namespace WindowsFormsApp1
             this.Location = new Point(0, 0);
         }
 
+        public void UpdateDisplayText(T item, string newName)
+        {
+            foreach (Control c in Controls)
+            {
+                if (c.Text == item.ToString())
+                {
+                    c.Text = newName;
+                    c.Name = newName;
+                }
+            }
+        }
+
 
         protected override void OnDragOver(DragEventArgs drgevent)
         {
             base.OnDragOver(drgevent);
-            
+
         }
 
     }
